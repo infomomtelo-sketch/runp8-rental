@@ -1,142 +1,335 @@
 <!doctype html>
 <html lang="en">
 <head>
-<meta charset="utf-8"/>
-<meta name="viewport" content="width=device-width,initial-scale=1"/>
-<title>RunP8</title>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>RunP8 Rental Flow</title>
+  <style>
+    * { box-sizing: border-box; }
 
-<style>
-body {
-  margin:0;
-  font-family: Arial;
-  background:#0f172a;
-  color:white;
-}
+    body {
+      margin: 0;
+      font-family: Arial, sans-serif;
+      background: #0f172a;
+      color: #ffffff;
+    }
 
-.chat {
-  max-width:480px;
-  margin:0 auto;
-  padding:20px;
-}
+    .page {
+      max-width: 720px;
+      margin: 0 auto;
+      padding: 20px 16px 40px;
+    }
 
-.msg {
-  background:#1e293b;
-  padding:12px;
-  border-radius:12px;
-  margin-bottom:10px;
-}
+    .topbar {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      gap: 12px;
+      margin-bottom: 18px;
+      flex-wrap: wrap;
+    }
 
-.btn {
-  display:block;
-  margin:6px 0;
-  padding:10px;
-  background:#2563eb;
-  border-radius:10px;
-  text-align:center;
-  cursor:pointer;
-}
-</style>
+    .brand {
+      font-size: 24px;
+      font-weight: 700;
+    }
+
+    .nav a {
+      color: #93c5fd;
+      text-decoration: none;
+      font-size: 14px;
+      margin-left: 14px;
+    }
+
+    .chat {
+      background: #111827;
+      border: 1px solid #1f2937;
+      border-radius: 18px;
+      padding: 16px;
+      min-height: 60vh;
+      box-shadow: 0 12px 30px rgba(0,0,0,0.25);
+    }
+
+    .msg {
+      background: #1e293b;
+      color: #ffffff;
+      padding: 12px 14px;
+      border-radius: 14px;
+      margin-bottom: 10px;
+      line-height: 1.45;
+    }
+
+    .msg.muted {
+      color: #cbd5e1;
+    }
+
+    .btn {
+      display: block;
+      width: 100%;
+      margin: 8px 0 12px;
+      padding: 12px 14px;
+      background: #2563eb;
+      color: white;
+      border: 0;
+      border-radius: 12px;
+      text-align: center;
+      cursor: pointer;
+      font-size: 15px;
+    }
+
+    .btn.secondary {
+      background: #334155;
+    }
+
+    .loading {
+      color: #cbd5e1;
+      font-size: 14px;
+      margin-bottom: 10px;
+    }
+
+    .property-card {
+      background: #0f172a;
+      border: 1px solid #334155;
+      border-radius: 14px;
+      padding: 14px;
+      margin-bottom: 12px;
+    }
+
+    .property-title {
+      font-weight: 700;
+      font-size: 18px;
+      margin-bottom: 4px;
+    }
+
+    .property-meta {
+      color: #cbd5e1;
+      font-size: 14px;
+      margin-bottom: 8px;
+    }
+
+    .footer-note {
+      color: #94a3b8;
+      font-size: 13px;
+      margin-top: 14px;
+    }
+  </style>
 </head>
-
 <body>
+  <div class="page">
+    <div class="topbar">
+      <div class="brand">RunP8</div>
+      <div class="nav">
+        <a href="/add-property.html">Add Property</a>
+      </div>
+    </div>
 
-<div class="chat" id="chat"></div>
+    <div class="chat" id="chat"></div>
+  </div>
 
-<script>
+  <script>
+    const API_BASE = "https://runp8-kv-api.infomomtelo.workers.dev";
 
-let selectedProperty = null;
+    let selectedProperty = null;
+    let applicantData = {};
+    let currentStep = 0;
 
-const chat = document.getElementById("chat");
+    const chat = document.getElementById("chat");
 
-/* UI */
+    function addMsg(text, extraClass = "") {
+      const div = document.createElement("div");
+      div.className = "msg" + (extraClass ? " " + extraClass : "");
+      div.innerText = text;
+      chat.appendChild(div);
+    }
 
-function addMsg(text) {
-  const div = document.createElement("div");
-  div.className = "msg";
-  div.innerText = text;
-  chat.appendChild(div);
-}
+    function addHtml(html) {
+      const div = document.createElement("div");
+      div.innerHTML = html;
+      chat.appendChild(div);
+    }
 
-function clearButtons() {
-  document.querySelectorAll(".btn").forEach(b => b.remove());
-}
+    function clearButtons() {
+      document.querySelectorAll(".btn").forEach(btn => btn.remove());
+    }
 
-function addButton(label, action) {
-  const btn = document.createElement("div");
-  btn.className = "btn";
-  btn.innerText = label;
-  btn.onclick = action;
-  chat.appendChild(btn);
-}
+    function addButton(label, action, secondary = false) {
+      const btn = document.createElement("button");
+      btn.className = "btn" + (secondary ? " secondary" : "");
+      btn.innerText = label;
+      btn.onclick = action;
+      chat.appendChild(btn);
+    }
 
-/* STATIC DATA (NO STORAGE = NO BREAKS) */
+    function resetConversationArea() {
+      chat.innerHTML = "";
+      selectedProperty = null;
+      applicantData = {};
+      currentStep = 0;
+    }
 
-const properties = [
-  { title:"2BR Apartment", price:1800, location:"Hanford" },
-  { title:"Studio Unit", price:1200, location:"Lemoore" }
-];
+    async function startListing() {
+      resetConversationArea();
 
-/* FLOW */
+      addMsg("Available properties:");
+      addMsg("Loading listings...", "muted");
 
-function start() {
-  addMsg("Available properties:");
+      try {
+        const res = await fetch(API_BASE + "/list");
+        const properties = await res.json();
 
-  properties.forEach(p => {
-    addMsg(p.title + " - $" + p.price + " - " + p.location);
+        chat.lastChild.remove();
 
-    addButton("Request Showing", () => {
-      selectedProperty = p;
-      startShowing();
-    });
-  });
-}
+        if (!Array.isArray(properties) || properties.length === 0) {
+          addMsg("No properties available yet.");
+          addMsg("You can add your first listing from Add Property.", "muted");
+          return;
+        }
 
-function startShowing() {
-  clearButtons();
+        properties.forEach((p) => {
+          addHtml(`
+            <div class="property-card">
+              <div class="property-title">${escapeHtml(p.title || "Untitled Property")}</div>
+              <div class="property-meta">$${escapeHtml(p.price || "")} · ${escapeHtml(p.location || "")}</div>
+              <div class="footer-note">${escapeHtml(p.desc || "No description yet.")}</div>
+            </div>
+          `);
 
-  addMsg("You selected:");
-  addMsg(selectedProperty.title + " - $" + selectedProperty.price);
+          addButton("Request Showing", () => {
+            selectedProperty = p;
+            startShowing();
+          });
+        });
 
-  addMsg("When do you plan to move in?");
+      } catch (err) {
+        chat.lastChild.remove();
+        addMsg("Unable to load listings right now.");
+        addMsg("Error: " + err.message, "muted");
+      }
+    }
 
-  addButton("ASAP", nextStep);
-  addButton("30 days", nextStep);
-  addButton("Flexible", nextStep);
-}
+    function startShowing() {
+      clearButtons();
+      applicantData = {};
+      currentStep = 1;
 
-function nextStep() {
-  clearButtons();
+      addMsg("You're requesting a showing.");
+      addMsg("Property selected:");
+      addMsg((selectedProperty.title || "Property") + " - $" + (selectedProperty.price || ""));
+      addMsg("Let’s get you pre-approved first.");
 
-  addMsg("You're pre-approved.");
-  addMsg("Choose a showing time:");
+      runPreApproval();
+    }
 
-  addButton("Friday 4PM", finish);
-  addButton("Saturday 10AM", finish);
-  addButton("Sunday 2PM", finish);
-}
+    function runPreApproval() {
+      if (currentStep === 1) {
+        addMsg("When do you plan to move in?");
+        addButton("ASAP", () => saveAnswer("moveIn", "ASAP"));
+        addButton("Within 30 days", () => saveAnswer("moveIn", "Within 30 days"));
+        addButton("Flexible", () => saveAnswer("moveIn", "Flexible"));
+        return;
+      }
 
-function finish() {
-  clearButtons();
+      if (currentStep === 2) {
+        addMsg("How many occupants?");
+        addButton("1", () => saveAnswer("occupants", "1"));
+        addButton("2", () => saveAnswer("occupants", "2"));
+        addButton("3+", () => saveAnswer("occupants", "3+"));
+        return;
+      }
 
-  addMsg("Showing scheduled.");
-  addMsg("Apply now?");
+      if (currentStep === 3) {
+        addMsg("Any pets?");
+        addButton("No", () => saveAnswer("pets", "No"));
+        addButton("Yes", () => saveAnswer("pets", "Yes"));
+        return;
+      }
 
-  addButton("Apply", apply);
-  addButton("Not now", () => addMsg("No problem."));
-}
+      if (currentStep === 4) {
+        addMsg("Estimated monthly income?");
+        addButton("< $3k", () => saveAnswer("income", "< $3k"));
+        addButton("$3k - $6k", () => saveAnswer("income", "$3k - $6k"));
+        addButton("> $6k", () => saveAnswer("income", "> $6k"));
+        return;
+      }
 
-function apply() {
-  clearButtons();
+      evaluateApplicant();
+    }
 
-  addMsg("You're approved.");
-  addMsg("Welcome to your new home.");
-}
+    function saveAnswer(key, value) {
+      clearButtons();
+      applicantData[key] = value;
+      currentStep += 1;
+      runPreApproval();
+    }
 
-/* START */
+    function evaluateApplicant() {
+      addMsg("Checking eligibility...");
 
-start();
+      if (applicantData.income === "> $6k") {
+        addMsg("You're pre-approved.");
+        showSchedule();
+      } else {
+        addMsg("We may need additional information.");
+        addButton("Upload documents", applicationFlow);
+        addButton("Continue anyway", showSchedule, true);
+      }
+    }
 
-</script>
+    function showSchedule() {
+      clearButtons();
+      addMsg("Choose a showing time:");
+      addButton("Friday 4PM", () => confirmShowing("Friday 4PM"));
+      addButton("Saturday 10AM", () => confirmShowing("Saturday 10AM"));
+      addButton("Sunday 2PM", () => confirmShowing("Sunday 2PM"));
+    }
 
+    function confirmShowing(slot) {
+      clearButtons();
+      addMsg("Showing scheduled for " + slot + ".");
+      addMsg("Ready to move forward?");
+      addButton("Apply Now", applicationFlow);
+      addButton("Ask Questions", () => addMsg("Ask anything."), true);
+      addButton("Not Interested", () => {
+        addMsg("No problem.");
+        addButton("Back to Listings", startListing);
+      }, true);
+    }
+
+    function applicationFlow() {
+      clearButtons();
+      addMsg("Upload required:");
+      addMsg("• ID");
+      addMsg("• Proof of income");
+      addMsg("• Background check consent");
+      addButton("Submit Application", approvalFlow);
+    }
+
+    function approvalFlow() {
+      clearButtons();
+      addMsg("You're approved.");
+      addMsg("To secure the property:");
+      addButton("Pay Deposit", paymentFlow);
+      addButton("View Lease", () => addMsg("Lease preview."), true);
+      addButton("Move-in Guide", () => addMsg("Move-in instructions."), true);
+    }
+
+    function paymentFlow() {
+      clearButtons();
+      addMsg("Deposit paid.");
+      addMsg("Welcome to your new home.");
+      addButton("Back to Listings", startListing);
+    }
+
+    function escapeHtml(str) {
+      return String(str)
+        .replaceAll("&", "&amp;")
+        .replaceAll("<", "&lt;")
+        .replaceAll(">", "&gt;")
+        .replaceAll('"', "&quot;")
+        .replaceAll("'", "&#39;");
+    }
+
+    startListing();
+  </script>
 </body>
 </html>
