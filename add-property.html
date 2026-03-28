@@ -1,0 +1,79 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8"/>
+<meta name="viewport" content="width=device-width,initial-scale=1"/>
+<title>Add Property | RunP8</title>
+
+<style>
+body{
+  margin:0;
+  font-family:Arial;
+  background:#0f172a;
+  color:white;
+  padding:20px;
+}
+
+.wrap{
+  max-width:600px;
+  margin:auto;
+  background:#1e293b;
+  padding:20px;
+  border-radius:12px;
+}
+
+input, textarea{
+  width:100%;
+  padding:10px;
+  margin:8px 0;
+  border:none;
+  border-radius:8px;
+}
+
+button{
+  width:100%;
+  padding:12px;
+  background:#2563eb;
+  color:white;
+  border:none;
+  border-radius:10px;
+  cursor:pointer;
+}
+</style>
+</head>
+
+<body>
+
+<div class="wrap">
+<h2>Add Property</h2>
+
+<input id="title" placeholder="Property Title"/>
+<input id="price" placeholder="Monthly Rent"/>
+<input id="location" placeholder="Location"/>
+<textarea id="desc" placeholder="Description"></textarea>
+
+<button onclick="saveProperty()">Submit</button>
+
+<p id="status"></p>
+</div>
+
+<script>
+function saveProperty(){
+  const property = {
+    title: document.getElementById("title").value,
+    price: document.getElementById("price").value,
+    location: document.getElementById("location").value,
+    desc: document.getElementById("desc").value
+  };
+
+  let properties = JSON.parse(localStorage.getItem("properties")) || [];
+  properties.push(property);
+
+  localStorage.setItem("properties", JSON.stringify(properties));
+
+  document.getElementById("status").innerText = "Saved!";
+}
+</script>
+
+</body>
+</html>
