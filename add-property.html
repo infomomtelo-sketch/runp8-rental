@@ -58,13 +58,22 @@ button{
 </div>
 
 <script>
-function saveProperty(){
+async function saveProperty(){
+
   const property = {
     title: document.getElementById("title").value,
     price: document.getElementById("price").value,
     location: document.getElementById("location").value,
     desc: document.getElementById("desc").value
   };
+
+  await fetch("https://runp8-api.YOUR-URL.workers.dev/add", {
+    method: "POST",
+    body: JSON.stringify(property)
+  });
+
+  document.getElementById("status").innerText = "Saved!";
+}
 
   let properties = JSON.parse(localStorage.getItem("properties")) || [];
   properties.push(property);
