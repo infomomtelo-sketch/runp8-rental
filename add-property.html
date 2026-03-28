@@ -1,88 +1,165 @@
 <!doctype html>
 <html lang="en">
 <head>
-<meta charset="utf-8"/>
-<meta name="viewport" content="width=device-width,initial-scale=1"/>
-<title>Add Property | RunP8</title>
-
-<style>
-body{
-  margin:0;
-  font-family:Arial;
-  background:#0f172a;
-  color:white;
-  padding:20px;
-}
-
-.wrap{
-  max-width:600px;
-  margin:auto;
-  background:#1e293b;
-  padding:20px;
-  border-radius:12px;
-}
-
-input, textarea{
-  width:100%;
-  padding:10px;
-  margin:8px 0;
-  border:none;
-  border-radius:8px;
-}
-
-button{
-  width:100%;
-  padding:12px;
-  background:#2563eb;
-  color:white;
-  border:none;
-  border-radius:10px;
-  cursor:pointer;
-}
-</style>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>Add Property | RunP8</title>
+  <style>
+    * { box-sizing: border-box; }
+    body {
+      margin: 0;
+      font-family: Arial, sans-serif;
+      background: #0f172a;
+      color: #ffffff;
+      padding: 24px 16px;
+    }
+    .wrap {
+      max-width: 680px;
+      margin: 0 auto;
+      background: #1e293b;
+      border-radius: 16px;
+      padding: 20px;
+      box-shadow: 0 12px 30px rgba(0,0,0,0.25);
+    }
+    h1 {
+      margin: 0 0 8px;
+      font-size: 28px;
+    }
+    p.sub {
+      margin: 0 0 20px;
+      color: #cbd5e1;
+    }
+    label {
+      display: block;
+      margin: 14px 0 6px;
+      font-size: 14px;
+      color: #cbd5e1;
+    }
+    input, textarea {
+      width: 100%;
+      border: 1px solid #334155;
+      background: #0f172a;
+      color: #ffffff;
+      border-radius: 12px;
+      padding: 12px 14px;
+      font-size: 16px;
+      outline: none;
+    }
+    textarea {
+      min-height: 120px;
+      resize: vertical;
+    }
+    .btn {
+      margin-top: 18px;
+      width: 100%;
+      border: 0;
+      border-radius: 12px;
+      background: #2563eb;
+      color: white;
+      padding: 14px;
+      font-size: 16px;
+      cursor: pointer;
+    }
+    .btn:disabled {
+      opacity: 0.65;
+      cursor: not-allowed;
+    }
+    .status {
+      margin-top: 16px;
+      padding: 12px 14px;
+      border-radius: 12px;
+      background: #0f172a;
+      color: #cbd5e1;
+      min-height: 24px;
+      white-space: pre-line;
+    }
+    .topnav {
+      max-width: 680px;
+      margin: 0 auto 16px;
+    }
+    .topnav a {
+      color: #93c5fd;
+      text-decoration: none;
+      font-size: 14px;
+    }
+  </style>
 </head>
-
 <body>
 
-<div class="wrap">
-<h2>Add Property</h2>
+  <div class="topnav">
+    <a href="/">← Back to RunP8</a>
+  </div>
 
-<input id="title" placeholder="Property Title"/>
-<input id="price" placeholder="Monthly Rent"/>
-<input id="location" placeholder="Location"/>
-<textarea id="desc" placeholder="Description"></textarea>
+  <div class="wrap">
+    <h1>Add Property</h1>
+    <p class="sub">Submit a property to your RunP8 rental flow.</p>
 
-<button onclick="saveProperty()">Submit</button>
+    <label for="title">Property Title</label>
+    <input id="title" placeholder="Example: 2BR Apartment" />
 
-<p id="status"></p>
-</div>
+    <label for="price">Monthly Rent</label>
+    <input id="price" placeholder="Example: 1800" />
 
-<script>
-async function saveProperty(){
+    <label for="location">Location</label>
+    <input id="location" placeholder="Example: Hanford" />
 
-  const property = {
-    title: document.getElementById("title").value,
-    price: document.getElementById("price").value,
-    location: document.getElementById("location").value,
-    desc: document.getElementById("desc").value
-  };
+    <label for="desc">Description</label>
+    <textarea id="desc" placeholder="Add a short description..."></textarea>
 
-  await fetch("https://runp8-api.YOUR-URL.workers.dev/add", {
-    method: "POST",
-    body: JSON.stringify(property)
-  });
+    <button class="btn" id="saveBtn" onclick="saveProperty()">Submit Property</button>
 
-  document.getElementById("status").innerText = "Saved!";
-}
+    <div class="status" id="status">Ready.</div>
+  </div>
 
-  let properties = JSON.parse(localStorage.getItem("properties")) || [];
-  properties.push(property);
+  <script>
+    const API_BASE = "https://runp8-kv-api.infomomtelo.workers.dev";
 
-  localStorage.setItem("properties", JSON.stringify(properties));
+    async function saveProperty() {
+      const saveBtn = document.getElementById("saveBtn");
+      const status = document.getElementById("status");
 
-  document.getElementById("status").innerText = "Saved!";
-}
-</script>
+      const property = {
+        title: document.getElementById("title").value.trim(),
+        price: document.getElementById("price").value.trim(),
+        location: document.getElementById("location").value.trim(),
+        desc: document.getElementById("desc").value.trim()
+      };
 
+      if (!property.title || !property.price || !property.location) {
+        status.innerText = "Please fill in title, price, and location.";
+        return;
+      }
+
+      saveBtn.disabled = true;
+      status.innerText = "Saving property...";
+
+      try {
+        const res = await fetch(API_BASE + "/add", {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json"
+          },
+          body: JSON.stringify(property)
+        });
+
+        const result = await res.json();
+
+        if (!res.ok) {
+          throw new Error(result.error || "Failed to save property.");
+        }
+
+        status.innerText = "Property saved successfully.";
+
+        document.getElementById("title").value = "";
+        document.getElementById("price").value = "";
+        document.getElementById("location").value = "";
+        document.getElementById("desc").value = "";
+      } catch (err) {
+        status.innerText = "Error: " + err.message;
+      } finally {
+        saveBtn.disabled = false;
+      }
+    }
+  </script>
 </body>
 </html>
