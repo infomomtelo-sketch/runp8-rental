@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8"/>
 <meta name="viewport" content="width=device-width,initial-scale=1"/>
-<title>RunP8 Rental Flow</title>
+<title>RunP8</title>
 
 <style>
 body {
@@ -35,10 +35,6 @@ body {
   text-align:center;
   cursor:pointer;
 }
-
-.btn.secondary {
-  background:#334155;
-}
 </style>
 </head>
 
@@ -48,14 +44,11 @@ body {
 
 <script>
 
-let flow = "listing";
-let step = 0;
-let data = {};
 let selectedProperty = null;
 
 const chat = document.getElementById("chat");
 
-/* ================= UI ================= */
+/* UI */
 
 function addMsg(text) {
   const div = document.createElement("div");
@@ -64,207 +57,84 @@ function addMsg(text) {
   chat.appendChild(div);
 }
 
-function addOptions(options) {
-  options.forEach(opt => {
-    const btn = document.createElement("div");
-    btn.className = "btn";
-    btn.innerText = opt.label;
-    btn.onclick = () => opt.action();
-    chat.appendChild(btn);
-  });
-}
-
-function clearOptions() {
+function clearButtons() {
   document.querySelectorAll(".btn").forEach(b => b.remove());
 }
 
-/* ================= LISTING ================= */
+function addButton(label, action) {
+  const btn = document.createElement("div");
+  btn.className = "btn";
+  btn.innerText = label;
+  btn.onclick = action;
+  chat.appendChild(btn);
+}
 
-function startListing() {
-  let properties = JSON.parse(localStorage.getItem("properties")) || [];
+/* STATIC DATA (NO STORAGE = NO BREAKS) */
 
-  if (properties.length === 0) {
-    addMsg("No properties available yet.");
-    return;
-  }
+const properties = [
+  { title:"2BR Apartment", price:1800, location:"Hanford" },
+  { title:"Studio Unit", price:1200, location:"Lemoore" }
+];
 
-  properties.forEach((p) => {
+/* FLOW */
+
+function start() {
+  addMsg("Available properties:");
+
+  properties.forEach(p => {
     addMsg(p.title + " - $" + p.price + " - " + p.location);
 
-    const btn = document.createElement("div");
-    btn.className = "btn";
-    btn.innerText = "Request Showing";
-
-    btn.onclick = () => {
+    addButton("Request Showing", () => {
       selectedProperty = p;
       startShowing();
-    };
-
-    chat.appendChild(btn);
+    });
   });
 }
 
-/* ================= SHOWING ================= */
-
 function startShowing() {
-  clearOptions();
-  flow = "pre_approval";
-  step = 1;
+  clearButtons();
 
-  addMsg("You're requesting a showing.");
-  addMsg("Property:");
+  addMsg("You selected:");
   addMsg(selectedProperty.title + " - $" + selectedProperty.price);
-  addMsg("Let's get you pre-approved first.");
 
-  preApproval();
+  addMsg("When do you plan to move in?");
+
+  addButton("ASAP", nextStep);
+  addButton("30 days", nextStep);
+  addButton("Flexible", nextStep);
 }
 
-/* ================= PRE APPROVAL ================= */
+function nextStep() {
+  clearButtons();
 
-function preApproval() {
-
-  if(step === 1){
-    addMsg("When do you plan to move in?");
-    addOptions([
-      {label:"ASAP", action:()=>save("move","ASAP")},
-      {label:"Within 30 days", action:()=>save("move","30")},
-      {label:"Flexible", action:()=>save("move","flex")}
-    ]);
-  }
-
-  else if(step === 2){
-    addMsg("How many occupants?");
-    addOptions([
-      {label:"1", action:()=>save("people",1)},
-      {label:"2", action:()=>save("people",2)},
-      {label:"3+", action:()=>save("people","3+")}
-    ]);
-  }
-
-  else if(step === 3){
-    addMsg("Any pets?");
-    addOptions([
-      {label:"No", action:()=>save("pets","no")},
-      {label:"Yes", action:()=>save("pets","yes")}
-    ]);
-  }
-
-  else if(step === 4){
-    addMsg("Estimated monthly income?");
-    addOptions([
-      {label:"< $3k", action:()=>save("income","low")},
-      {label:"$3k - $6k", action:()=>save("income","mid")},
-      {label:"> $6k", action:()=>save("income","high")}
-    ]);
-  }
-
-  else {
-    evaluate();
-  }
-}
-
-/* ================= SAVE ================= */
-
-function save(key,value){
-  data[key] = value;
-  step++;
-  clearOptions();
-  preApproval();
-}
-
-/* ================= DECISION ================= */
-
-function evaluate(){
-  addMsg("Checking eligibility...");
-
-  if(data.income === "high"){
-    addMsg("You're pre-approved.");
-    showSchedule();
-  } else {
-    addMsg("We may need additional information.");
-    addOptions([
-      {label:"Upload documents", action:application},
-      {label:"Continue anyway", action:showSchedule}
-    ]);
-  }
-}
-
-/* ================= SCHEDULE ================= */
-
-function showSchedule(){
-  flow = "schedule";
-  clearOptions();
-
+  addMsg("You're pre-approved.");
   addMsg("Choose a showing time:");
 
-  addOptions([
-    {label:"Friday 4PM", action:postShowing},
-    {label:"Saturday 10AM", action:postShowing},
-    {label:"Sunday 2PM", action:postShowing}
-  ]);
+  addButton("Friday 4PM", finish);
+  addButton("Saturday 10AM", finish);
+  addButton("Sunday 2PM", finish);
 }
 
-/* ================= POST SHOWING ================= */
-
-function postShowing(){
-  flow = "post_showing";
-  clearOptions();
+function finish() {
+  clearButtons();
 
   addMsg("Showing scheduled.");
-  addMsg("Ready to move forward?");
+  addMsg("Apply now?");
 
-  addOptions([
-    {label:"Apply Now", action:application},
-    {label:"Ask Questions", action:()=>addMsg("Ask anything.")},
-    {label:"Not Interested", action:()=>addMsg("No problem.")}
-  ]);
+  addButton("Apply", apply);
+  addButton("Not now", () => addMsg("No problem."));
 }
 
-/* ================= APPLICATION ================= */
-
-function application(){
-  flow = "application";
-  clearOptions();
-
-  addMsg("Upload required:");
-  addMsg("• ID");
-  addMsg("• Proof of income");
-  addMsg("• Background check consent");
-
-  addOptions([
-    {label:"Submit Application", action:approval}
-  ]);
-}
-
-/* ================= APPROVAL ================= */
-
-function approval(){
-  flow = "approved";
-  clearOptions();
+function apply() {
+  clearButtons();
 
   addMsg("You're approved.");
-  addMsg("To secure the property:");
-
-  addOptions([
-    {label:"Pay Deposit", action:payment},
-    {label:"View Lease", action:()=>addMsg("Lease preview")},
-    {label:"Move-in Guide", action:()=>addMsg("Instructions")}
-  ]);
-}
-
-/* ================= PAYMENT ================= */
-
-function payment(){
-  flow = "payment";
-  clearOptions();
-
-  addMsg("Deposit paid.");
   addMsg("Welcome to your new home.");
 }
 
-/* ================= START ================= */
+/* START */
 
-startListing();
+start();
 
 </script>
 
