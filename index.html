@@ -1,1 +1,244 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8"/>
+<meta name="viewport" content="width=device-width,initial-scale=1"/>
+<title>RunP8 Rental Flow</title>
 
+<style>
+body {
+  margin:0;
+  font-family: Arial;
+  background:#0f172a;
+  color:white;
+}
+
+.chat {
+  max-width:480px;
+  margin:0 auto;
+  padding:20px;
+}
+
+.msg {
+  background:#1e293b;
+  padding:12px;
+  border-radius:12px;
+  margin-bottom:10px;
+}
+
+.btn {
+  display:block;
+  margin:6px 0;
+  padding:10px;
+  background:#2563eb;
+  border-radius:10px;
+  text-align:center;
+  cursor:pointer;
+}
+
+.btn.secondary {
+  background:#334155;
+}
+</style>
+</head>
+
+<body>
+
+<div class="chat" id="chat"></div>
+
+<script>
+let flow = "listing";
+let step = 0;
+let data = {};
+
+const chat = document.getElementById("chat");
+
+function addMsg(text) {
+  const div = document.createElement("div");
+  div.className = "msg";
+  div.innerText = text;
+  chat.appendChild(div);
+}
+
+function addOptions(options) {
+  options.forEach(opt => {
+    const btn = document.createElement("div");
+    btn.className = "btn";
+    btn.innerText = opt.label;
+    btn.onclick = () => opt.action();
+    chat.appendChild(btn);
+  });
+}
+
+function clearOptions() {
+  document.querySelectorAll(".btn").forEach(b => b.remove());
+}
+
+/* ================= FLOW ================= */
+
+function startListing() {
+  addMsg("Property: 2BR Apartment - $1,800/month");
+  addOptions([
+    { label:"Request Showing", action:startShowing }
+  ]);
+}
+
+function startShowing() {
+  clearOptions();
+  flow = "pre_approval";
+  step = 1;
+
+  addMsg("You're requesting a showing.");
+  addMsg("Let's get you pre-approved first.");
+  preApproval();
+}
+
+/* ================= PRE APPROVAL ================= */
+
+function preApproval() {
+
+  if(step === 1){
+    addMsg("When do you plan to move in?");
+    addOptions([
+      {label:"ASAP", action:()=>save("move","ASAP")},
+      {label:"30 Days", action:()=>save("move","30")},
+      {label:"Flexible", action:()=>save("move","flex")}
+    ]);
+  }
+
+  else if(step === 2){
+    addMsg("How many occupants?");
+    addOptions([
+      {label:"1", action:()=>save("people",1)},
+      {label:"2", action:()=>save("people",2)},
+      {label:"3+", action:()=>save("people","3+")}
+    ]);
+  }
+
+  else if(step === 3){
+    addMsg("Any pets?");
+    addOptions([
+      {label:"No", action:()=>save("pets","no")},
+      {label:"Yes", action:()=>save("pets","yes")}
+    ]);
+  }
+
+  else if(step === 4){
+    addMsg("Monthly income?");
+    addOptions([
+      {label:"< $3k", action:()=>save("income","low")},
+      {label:"$3k-$6k", action:()=>save("income","mid")},
+      {label:"> $6k", action:()=>save("income","high")}
+    ]);
+  }
+
+  else {
+    evaluate();
+  }
+}
+
+/* ================= SAVE ================= */
+
+function save(key,value){
+  data[key] = value;
+  step++;
+  clearOptions();
+  preApproval();
+}
+
+/* ================= DECISION ================= */
+
+function evaluate(){
+  addMsg("Checking eligibility...");
+
+  if(data.income === "high"){
+    addMsg("You're pre-approved.");
+    showSchedule();
+  } else {
+    addMsg("We need more info.");
+    addOptions([
+      {label:"Upload documents", action:application},
+      {label:"Continue anyway", action:showSchedule}
+    ]);
+  }
+}
+
+/* ================= SCHEDULE ================= */
+
+function showSchedule(){
+  flow = "schedule";
+  clearOptions();
+
+  addMsg("Choose a showing time:");
+
+  addOptions([
+    {label:"Friday 4PM", action:postShowing},
+    {label:"Saturday 10AM", action:postShowing},
+    {label:"Sunday 2PM", action:postShowing}
+  ]);
+}
+
+/* ================= POST SHOWING ================= */
+
+function postShowing(){
+  flow = "post_showing";
+  clearOptions();
+
+  addMsg("Showing scheduled.");
+  addMsg("Ready to move forward?");
+
+  addOptions([
+    {label:"Apply Now", action:application},
+    {label:"Ask Questions", action:()=>addMsg("Ask anything.")},
+    {label:"Not Interested", action:()=>addMsg("No problem.")}
+  ]);
+}
+
+/* ================= APPLICATION ================= */
+
+function application(){
+  flow = "application";
+  clearOptions();
+
+  addMsg("Upload required:");
+  addMsg("• ID\n• Proof of income\n• Consent");
+
+  addOptions([
+    {label:"Submit Application", action:approval}
+  ]);
+}
+
+/* ================= APPROVAL ================= */
+
+function approval(){
+  flow = "approved";
+  clearOptions();
+
+  addMsg("You're approved.");
+  addMsg("Secure the property:");
+
+  addOptions([
+    {label:"Pay Deposit", action:payment},
+    {label:"View Lease", action:()=>addMsg("Lease preview")},
+    {label:"Move-in Guide", action:()=>addMsg("Instructions")}
+  ]);
+}
+
+/* ================= PAYMENT ================= */
+
+function payment(){
+  flow = "payment";
+  clearOptions();
+
+  addMsg("Deposit Paid.");
+  addMsg("Welcome to your new home.");
+}
+
+/* ================= START ================= */
+
+startListing();
+
+</script>
+
+</body>
+</html>
